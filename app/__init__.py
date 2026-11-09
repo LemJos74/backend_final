@@ -1,0 +1,1 @@
+"""LimpiaHuancayo FastAPI application package."""
