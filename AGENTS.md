@@ -2,7 +2,7 @@
 
 ## Project shape
 
-LimpiaHuancayo backend is early-stage. Python 3.14 + `uv`. The FastAPI app lives in `src/backend/` (entrypoint `backend.main:app`), packaged as `backend` through `uv_build`'s `src/` layout. Most domain logic is implemented in PostgreSQL routines under `database/`. The API currently exposes `GET /`, `GET /health`, and read-only catalogs under `/api/catalogos` (`distritos`, `tipos-reporte`, `estados-reporte`); `/health` checks only the HTTP server, not PostgreSQL.
+LimpiaHuancayo backend is early-stage. Python 3.14 + `uv`. The FastAPI app lives in `src/backend/` (entrypoint `backend.main:app`), packaged as `backend` through `uv_build`'s `src/` layout. Most domain logic is implemented in PostgreSQL routines under `database/`. The API currently exposes `GET /`, `GET /health`, `POST /api/usuarios/registro`, and read-only catalogs under `/api/catalogos` (`distritos`, `tipos-reporte`, `estados-reporte`); `/health` checks only the HTTP server, not PostgreSQL.
 
 ## Commands
 
@@ -26,6 +26,7 @@ LimpiaHuancayo backend is early-stage. Python 3.14 + `uv`. The FastAPI app lives
 ## Domain rules
 
 - Roles: `Ciudadano` and `Administrador`.
+- Public registration creates only `Ciudadano`; `sp_usuario_registrar` assigns the role. Passwords are hashed with Argon2id in the service and never stored or logged in plaintext.
 - Citizens register, log in, create reports, and can read only their own reports.
 - Reports are immutable after creation: no edit/delete routines or endpoints.
 - Only administrators change report state and admin observations.
@@ -47,10 +48,10 @@ LimpiaHuancayo backend is early-stage. Python 3.14 + `uv`. The FastAPI app lives
 ## Layout
 
 - `src/backend/` — FastAPI application; `src/backend/main.py` is the entrypoint.
-- `src/backend/core/` — `.env` settings and the psycopg 3 connection helper.
-- `src/backend/apis/` — HTTP routers (`catalogos.py`).
-- `src/backend/services/` — application orchestration (`catalogos.py`).
-- `src/backend/repositories/` — stored-routine access (`catalogos.py`).
-- `src/backend/schemas/` — Pydantic response models (`catalogos.py`).
+- `src/backend/core/` — `.env` settings, the psycopg 3 connection helper, and shared exceptions.
+- `src/backend/apis/` — HTTP routers (`catalogos.py`, `usuarios.py`).
+- `src/backend/services/` — application orchestration (`catalogos.py`, `usuarios.py`).
+- `src/backend/repositories/` — stored-routine access (`catalogos.py`, `usuarios.py`).
+- `src/backend/schemas/` — Pydantic request/response models (`catalogos.py`, `usuarios.py`).
 - `database/` — numbered SQL scripts, applied manually in order.
 - `test_conexion.py` — standalone script at the root, not a test package.
