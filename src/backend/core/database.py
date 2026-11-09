@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import psycopg
 from psycopg import Connection
 
-from app.core.config import settings
+from backend.core.config import settings
 
 
 def create_connection() -> Connection:

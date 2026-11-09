@@ -2,15 +2,14 @@
 
 ## Project shape
 
-LimpiaHuancayo backend is early-stage. Python 3.14 + `uv`. The FastAPI app lives in `app/` (entrypoint `app.main:app`); `src/backend/` is the original scaffold and still only prints a placeholder. Most domain logic is implemented in PostgreSQL routines under `database/`. The API currently exposes only `GET /` and `GET /health`; `/health` does not check PostgreSQL.
+LimpiaHuancayo backend is early-stage. Python 3.14 + `uv`. The FastAPI app lives in `src/backend/` (entrypoint `backend.main:app`), packaged as `backend` through `uv_build`'s `src/` layout. Most domain logic is implemented in PostgreSQL routines under `database/`. The API currently exposes `GET /`, `GET /health`, and read-only catalogs under `/api/catalogos` (`distritos`, `tipos-reporte`, `estados-reporte`); `/health` checks only the HTTP server, not PostgreSQL.
 
 ## Commands
 
 - Use `uv` for everything. Bare `python` is not available (Windows Store alias); use `uv run python ...` or `.venv\Scripts\python`.
 - `uv sync` — install/refresh dependencies from `pyproject.toml` + `uv.lock`.
-- `uv run uvicorn app.main:app --reload` — run the API from the repository root. Swagger UI: `http://127.0.0.1:8000/docs`.
+- `uv run uvicorn backend.main:app --reload` — run the API from the repository root. Swagger UI: `http://127.0.0.1:8000/docs`.
 - `uv run python test_conexion.py` — manual DB connectivity smoke script; it is not pytest.
-- `uv run backend` — legacy placeholder entrypoint only.
 - No lint, format, typecheck, test, or CI config exists. Do not invent pytest/ruff/mypy commands.
 
 ## Architecture (required)
@@ -47,9 +46,11 @@ LimpiaHuancayo backend is early-stage. Python 3.14 + `uv`. The FastAPI app lives
 
 ## Layout
 
-- `app/` — FastAPI application; `app/main.py` is the entrypoint.
-- `app/core/` — `.env` settings and the psycopg 3 connection helper.
-- `app/apis/`, `app/services/`, `app/repositories/`, `app/schemas/` — layer packages (empty for now).
+- `src/backend/` — FastAPI application; `src/backend/main.py` is the entrypoint.
+- `src/backend/core/` — `.env` settings and the psycopg 3 connection helper.
+- `src/backend/apis/` — HTTP routers (`catalogos.py`).
+- `src/backend/services/` — application orchestration (`catalogos.py`).
+- `src/backend/repositories/` — stored-routine access (`catalogos.py`).
+- `src/backend/schemas/` — Pydantic response models (`catalogos.py`).
 - `database/` — numbered SQL scripts, applied manually in order.
-- `src/backend/` — legacy scaffold; do not add new API code there.
 - `test_conexion.py` — standalone script at the root, not a test package.
