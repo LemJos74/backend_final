@@ -2,11 +2,13 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from backend.apis.auth import router as auth_router
 from backend.apis.catalogos import router as catalogos_router
 from backend.apis.usuarios import router as usuarios_router
 from backend.core.config import settings
 
 app = FastAPI(title=settings.app_name, version="0.1.0")
+app.include_router(auth_router)
 app.include_router(catalogos_router)
 app.include_router(usuarios_router)
 
