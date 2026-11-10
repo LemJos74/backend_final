@@ -11,6 +11,10 @@ tablas y rutinas):
 4. 04_permisos_usuarios.sql
 5. 05_catalogos_consulta.sql
 6. 06_admin_inicial.sql
+7. 07_reportes_rutinas.sql
+8. 08_permisos_reportes.sql
+9. 09_reportes_consulta.sql
+10. 10_permisos_reportes_consulta.sql
 
 04 aplica SECURITY DEFINER, search_path y permisos EXECUTE al rol de
 aplicacion para las rutinas de usuarios. 05 crea las funciones de consulta
@@ -20,6 +24,16 @@ de los tres catalogos. Si se vuelve a ejecutar 03, ejecutar 04 otra vez.
 propietario, y es idempotente: si ya existe un Administrador no crea otro,
 no modifica usuarios existentes y no concede permisos a limpiahuancayo_app.
 No ejecutar 06 como limpiahuancayo_app.
+
+07 crea el procedimiento de registro de reportes ciudadanos. 08 reaplica
+SECURITY DEFINER, search_path y permisos EXECUTE para ese procedimiento.
+09 crea la funcion de consulta de reportes propios con paginacion. 10
+reaplica la seguridad y los permisos de esa funcion. Los scripts 07 a 10
+deben ejecutarse como propietario y no conceden acceso directo a las tablas.
+
+La instalacion sigue siendo manual; todavia no existe un instalador SQL
+maestro. Ejecutar los scripts en el orden indicado y no reejecutar scripts
+de esquema sobre una base ya poblada sin revisar antes.
 
 Generar el hash Argon2id desde la raiz del proyecto. El siguiente bloque
 evita que la contrasena quede en el historial de PowerShell:

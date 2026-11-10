@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 
@@ -6,6 +7,7 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
+    field_serializer,
     field_validator,
 )
 
@@ -50,3 +52,23 @@ class ReporteRegistroRequest(BaseModel):
 
 class ReporteRegistroResponse(BaseModel):
     id: int
+
+
+class ReporteMioItem(BaseModel):
+    id: int
+    tipo_id: int
+    tipo_nombre: str
+    distrito_id: int
+    distrito_nombre: str
+    estado_id: int
+    estado_nombre: str
+    descripcion: str
+    ubicacion: str
+    latitud: Decimal
+    longitud: Decimal
+    created_at: datetime
+
+    @field_serializer("latitud", "longitud", when_used="json")
+    def serializar_coordenada(self, valor: Decimal) -> float:
+        """Return coordinates as JSON numbers for map clients."""
+        return float(valor)

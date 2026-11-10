@@ -32,3 +32,11 @@ class ReporteConflictoError(Exception):
 
 class EstadoReporteNoConfiguradoError(Exception):
     """Raised when the initial Pendiente state is missing."""
+
+
+class ReporteConsultaInvalidaError(Exception):
+    """Raised when report listing parameters are invalid."""
+
+
+class ReporteConsultaNoConfiguradaError(Exception):
+    """Raised when the report listing routine is missing or inaccessible."""

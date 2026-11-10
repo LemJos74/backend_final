@@ -1,14 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from backend.apis.dependencies import requiere_rol
 from backend.core.exceptions import (
     EstadoReporteNoConfiguradoError,
     ReporteConflictoError,
+    ReporteConsultaInvalidaError,
+    ReporteConsultaNoConfiguradaError,
     ReporteDatosInvalidosError,
     ReporteNoAutorizadoError,
     ReporteReferenciaInvalidaError,
 )
 from backend.schemas.reportes import (
+    ReporteMioItem,
     ReporteRegistroRequest,
     ReporteRegistroResponse,
 )
@@ -64,3 +69,39 @@ def registrar_reporte(
         ) from None
 
     return ReporteRegistroResponse(id=reporte_id)
+
+
+@router.get(
+    "/mios",
+    response_model=list[ReporteMioItem],
+    responses={
+        401: {"description": "No autenticado"},
+        403: {"description": "No autorizado"},
+        422: {"description": "Parámetros de consulta inválidos"},
+        500: {"description": "Error de configuración del servidor"},
+    },
+)
+def listar_mis_reportes(
+    limite: Annotated[
+        int,
+        Query(ge=1, le=100, description="Cantidad máxima de reportes"),
+    ] = 20,
+    desplazamiento: Annotated[
+        int,
+        Query(ge=0, description="Cantidad de reportes a omitir"),
+    ] = 0,
+    usuario: UsuarioPerfilResponse = Depends(requiere_rol("Ciudadano")),
+) -> list[ReporteMioItem]:
+    """Return only the authenticated citizen's reports."""
+    try:
+        return servicio.listar_mios(usuario.id, limite, desplazamiento)
+    except ReporteConsultaInvalidaError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Parámetros de consulta inválidos",
+        ) from None
+    except ReporteConsultaNoConfiguradaError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error de configuración del servidor",
+        ) from None
