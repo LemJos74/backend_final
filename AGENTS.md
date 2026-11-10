@@ -28,6 +28,8 @@ LimpiaHuancayo backend is early-stage. Python 3.14 + `uv`. The FastAPI app lives
 - Roles: `Ciudadano` and `Administrador`.
 - Public registration creates only `Ciudadano`; `sp_usuario_registrar` assigns the role. Passwords are hashed with Argon2id in the service and never stored or logged in plaintext.
 - Authentication uses HS256 JWTs signed with `JWT_SECRET` and expiring after 30 minutes; protected routes reload the user from PostgreSQL and reject inactive accounts.
+- Authorization uses `requiere_rol("Administrador")` or `requiere_rol("Ciudadano", ...)` from `apis/dependencies.py`. It reuses `obtener_usuario_actual`, reads the current role from PostgreSQL and returns `403 {"detail": "No autorizado"}` when the role is not allowed. Never trust roles from the client or the JWT.
+- The first `Administrador` is created only by `database/06_admin_inicial.sql`, executed manually by the database owner. Public registration never assigns that role.
 - Citizens register, log in, create reports, and can read only their own reports.
 - Reports are immutable after creation: no edit/delete routines or endpoints.
 - Only administrators change report state and admin observations.
@@ -38,8 +40,9 @@ LimpiaHuancayo backend is early-stage. Python 3.14 + `uv`. The FastAPI app lives
 
 - `.env` at the repo root supplies `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `JWT_ALGORITHM` and `JWT_EXPIRE_MINUTES`; it is gitignored and must never be committed.
 - Setup is manual (psql/pgAdmin). Prerequisite: database `limpiahuancayo` and role `limpiahuancayo_app` exist. Run as table/routine owner, in order:
-  `01_esquema.sql` → `02_datos_iniciales.sql` → `03_usuarios_rutinas.sql` → `04_permisos_usuarios.sql` → `05_catalogos_consulta.sql`.
+  `01_esquema.sql` → `02_datos_iniciales.sql` → `03_usuarios_rutinas.sql` → `04_permisos_usuarios.sql` → `05_catalogos_consulta.sql` → `06_admin_inicial.sql`.
 - `03` creates the user routines; `04` sets `SECURITY DEFINER`/`search_path` and grants EXECUTE to `limpiahuancayo_app`; `05` creates and grants the three catalog functions. If `03` is re-run, re-run `04`.
+- `06` bootstraps the first `Administrador`. It is owner-run, idempotent, does not modify existing users, does not promote citizens, and grants nothing to `limpiahuancayo_app`. It accepts email, name and an Argon2id hash through session settings (`SET lh.admin_*`), not through values in the file. It must not be run until the owner supplies those values.
 - The app role must have EXECUTE on routines and no direct table privileges. Keep it that way.
 - Scripts use `IF NOT EXISTS`; they do not migrate existing tables. Do not re-run them blindly on a populated database.
 - Naming: `fn_*` are read/list functions, `sp_*` are mutation procedures. Preserve Spanish error messages and SQLSTATE codes (`22023` validation, `P0002` not found).
@@ -50,7 +53,7 @@ LimpiaHuancayo backend is early-stage. Python 3.14 + `uv`. The FastAPI app lives
 
 - `src/backend/` — FastAPI application; `src/backend/main.py` is the entrypoint.
 - `src/backend/core/` — `.env` settings, the psycopg 3 connection helper, shared exceptions, and Argon2id/JWT helpers.
-- `src/backend/apis/` — HTTP routers (`auth.py`, `catalogos.py`, `usuarios.py`) and shared auth dependency (`dependencies.py`).
+- `src/backend/apis/` — HTTP routers (`auth.py`, `catalogos.py`, `usuarios.py`) and shared authentication/role dependencies (`dependencies.py`).
 - `src/backend/services/` — application orchestration (`auth.py`, `catalogos.py`, `usuarios.py`).
 - `src/backend/repositories/` — stored-routine access (`catalogos.py`, `usuarios.py`).
 - `src/backend/schemas/` — Pydantic request/response models (`auth.py`, `catalogos.py`, `usuarios.py`).
