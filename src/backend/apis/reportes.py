@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from backend.apis.dependencies import requiere_rol
 from backend.core.exceptions import (
@@ -13,6 +13,7 @@ from backend.core.exceptions import (
     ReporteReferenciaInvalidaError,
 )
 from backend.schemas.reportes import (
+    ReporteDetalleItem,
     ReporteMioItem,
     ReporteRegistroRequest,
     ReporteRegistroResponse,
@@ -105,3 +106,46 @@ def listar_mis_reportes(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error de configuración del servidor",
         ) from None
+
+
+@router.get(
+    "/{reporte_id}",
+    response_model=ReporteDetalleItem,
+    responses={
+        401: {"description": "No autenticado"},
+        403: {"description": "No autorizado"},
+        404: {"description": "Reporte no encontrado"},
+        422: {"description": "Identificador de reporte inválido"},
+        500: {"description": "Error de configuración del servidor"},
+    },
+)
+def obtener_reporte(
+    reporte_id: Annotated[
+        int,
+        Path(gt=0, description="Identificador del reporte"),
+    ],
+    usuario: UsuarioPerfilResponse = Depends(
+        requiere_rol("Ciudadano", "Administrador")
+    ),
+) -> ReporteDetalleItem:
+    """Return one report allowed for the authenticated user."""
+    try:
+        reporte = servicio.obtener_reporte(reporte_id, usuario.id)
+    except ReporteConsultaInvalidaError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Identificador de reporte inválido",
+        ) from None
+    except ReporteConsultaNoConfiguradaError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error de configuración del servidor",
+        ) from None
+
+    if reporte is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado",
+        )
+
+    return reporte

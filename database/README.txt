@@ -15,6 +15,8 @@ tablas y rutinas):
 8. 08_permisos_reportes.sql
 9. 09_reportes_consulta.sql
 10. 10_permisos_reportes_consulta.sql
+11. 11_reportes_detalle.sql
+12. 12_permisos_reportes_detalle.sql
 
 04 aplica SECURITY DEFINER, search_path y permisos EXECUTE al rol de
 aplicacion para las rutinas de usuarios. 05 crea las funciones de consulta
@@ -28,8 +30,11 @@ No ejecutar 06 como limpiahuancayo_app.
 07 crea el procedimiento de registro de reportes ciudadanos. 08 reaplica
 SECURITY DEFINER, search_path y permisos EXECUTE para ese procedimiento.
 09 crea la funcion de consulta de reportes propios con paginacion. 10
-reaplica la seguridad y los permisos de esa funcion. Los scripts 07 a 10
-deben ejecutarse como propietario y no conceden acceso directo a las tablas.
+reaplica la seguridad y los permisos de esa funcion. 11 crea la funcion de
+detalle individual de reportes, que resuelve el rol actual desde la base de
+datos. 12 reaplica la seguridad y los permisos de esa funcion. Los scripts
+07 a 12 deben ejecutarse como propietario y no conceden acceso directo a las
+tablas.
 
 La instalacion sigue siendo manual; todavia no existe un instalador SQL
 maestro. Ejecutar los scripts en el orden indicado y no reejecutar scripts

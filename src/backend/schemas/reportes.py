@@ -72,3 +72,9 @@ class ReporteMioItem(BaseModel):
     def serializar_coordenada(self, valor: Decimal) -> float:
         """Return coordinates as JSON numbers for map clients."""
         return float(valor)
+
+
+class ReporteDetalleItem(ReporteMioItem):
+    imagen_path: str | None
+    observacion_admin: str | None
+    updated_at: datetime

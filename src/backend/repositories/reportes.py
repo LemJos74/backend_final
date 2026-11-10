@@ -21,6 +21,7 @@ _SQL_REGISTRAR = (
 _SQL_LISTAR_MIOS = (
     "SELECT * FROM public.fn_reporte_listar_mios(%s, %s, %s)"
 )
+_SQL_OBTENER = "SELECT * FROM public.fn_reporte_obtener(%s, %s)"
 _CODIGOS_DATOS_INVALIDOS = frozenset({"22001", "22003", "22023", "23502", "23514"})
 _CODIGOS_CONSULTA_NO_CONFIGURADA = frozenset({"42501", "42883"})
 
@@ -89,6 +90,24 @@ def listar_mios(
                     (usuario_id, limite, desplazamiento),
                 )
                 return cursor.fetchall()
+    except psycopg.Error as error:
+        if error.sqlstate == "22023":
+            raise ReporteConsultaInvalidaError from error
+        if error.sqlstate in _CODIGOS_CONSULTA_NO_CONFIGURADA:
+            raise ReporteConsultaNoConfiguradaError from error
+        raise
+
+
+def obtener_reporte(
+    reporte_id: int,
+    usuario_id: int,
+) -> dict[str, Any] | None:
+    """Get one report through the stored function."""
+    try:
+        with get_connection() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(_SQL_OBTENER, (reporte_id, usuario_id))
+                return cursor.fetchone()
     except psycopg.Error as error:
         if error.sqlstate == "22023":
             raise ReporteConsultaInvalidaError from error
