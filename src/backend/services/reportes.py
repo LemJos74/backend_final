@@ -1,5 +1,6 @@
 from backend.repositories import reportes as repositorio
 from backend.schemas.reportes import (
+    ReporteAdminItem,
     ReporteDetalleItem,
     ReporteMioItem,
     ReporteRegistroRequest,
@@ -71,3 +72,42 @@ def obtener_reporte(
         created_at=fila["created_at"],
         updated_at=fila["updated_at"],
     )
+
+
+def listar_admin(
+    admin_id: int,
+    distrito_id: int | None,
+    tipo_id: int | None,
+    estado_id: int | None,
+    limite: int,
+    desplazamiento: int,
+) -> list[ReporteAdminItem]:
+    """Return every report for an authenticated administrator."""
+    filas = repositorio.listar_admin(
+        admin_id=admin_id,
+        distrito_id=distrito_id,
+        tipo_id=tipo_id,
+        estado_id=estado_id,
+        limite=limite,
+        desplazamiento=desplazamiento,
+    )
+    return [
+        ReporteAdminItem(
+            id=int(fila["id"]),
+            usuario_id=int(fila["usuario_id"]),
+            usuario_nombre=fila["usuario_nombre"],
+            tipo_id=int(fila["tipo_id"]),
+            tipo_nombre=fila["tipo_nombre"],
+            distrito_id=int(fila["distrito_id"]),
+            distrito_nombre=fila["distrito_nombre"],
+            estado_id=int(fila["estado_id"]),
+            estado_nombre=fila["estado_nombre"],
+            descripcion=fila["descripcion"],
+            ubicacion=fila["ubicacion"],
+            latitud=fila["latitud"],
+            longitud=fila["longitud"],
+            created_at=fila["created_at"],
+            updated_at=fila["updated_at"],
+        )
+        for fila in filas
+    ]

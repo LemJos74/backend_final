@@ -17,6 +17,8 @@ tablas y rutinas):
 10. 10_permisos_reportes_consulta.sql
 11. 11_reportes_detalle.sql
 12. 12_permisos_reportes_detalle.sql
+13. 13_reportes_admin_listado.sql
+14. 14_permisos_reportes_admin_listado.sql
 
 04 aplica SECURITY DEFINER, search_path y permisos EXECUTE al rol de
 aplicacion para las rutinas de usuarios. 05 crea las funciones de consulta
@@ -35,6 +37,13 @@ detalle individual de reportes, que resuelve el rol actual desde la base de
 datos. 12 reaplica la seguridad y los permisos de esa funcion. Los scripts
 07 a 12 deben ejecutarse como propietario y no conceden acceso directo a las
 tablas.
+
+13 crea la funcion de listado administrativo de reportes, con filtros
+opcionales por distrito, tipo y estado, paginacion y validacion del rol
+Administrador dentro de la base de datos. 14 reaplica SECURITY DEFINER,
+search_path y permisos EXECUTE para esa funcion. Al igual que 07 a 12,
+ambos scripts se ejecutan como propietario y no conceden acceso directo a
+las tablas: limpiahuancayo_app solo recibe EXECUTE.
 
 La instalacion sigue siendo manual; todavia no existe un instalador SQL
 maestro. Ejecutar los scripts en el orden indicado y no reejecutar scripts

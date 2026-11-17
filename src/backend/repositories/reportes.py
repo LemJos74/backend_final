@@ -22,6 +22,10 @@ _SQL_LISTAR_MIOS = (
     "SELECT * FROM public.fn_reporte_listar_mios(%s, %s, %s)"
 )
 _SQL_OBTENER = "SELECT * FROM public.fn_reporte_obtener(%s, %s)"
+_SQL_LISTAR_ADMIN = (
+    "SELECT * FROM public.fn_reporte_listar_admin("
+    "%s::bigint, %s::bigint, %s::bigint, %s::bigint, %s::integer, %s::integer)"
+)
 _CODIGOS_DATOS_INVALIDOS = frozenset({"22001", "22003", "22023", "23502", "23514"})
 _CODIGOS_CONSULTA_NO_CONFIGURADA = frozenset({"42501", "42883"})
 
@@ -114,3 +118,38 @@ def obtener_reporte(
         if error.sqlstate in _CODIGOS_CONSULTA_NO_CONFIGURADA:
             raise ReporteConsultaNoConfiguradaError from error
         raise
+
+
+def listar_admin(
+    admin_id: int,
+    distrito_id: int | None,
+    tipo_id: int | None,
+    estado_id: int | None,
+    limite: int,
+    desplazamiento: int,
+) -> list[dict[str, Any]]:
+    """List every report through fn_reporte_listar_admin (admin only)."""
+    try:
+        with get_connection() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    _SQL_LISTAR_ADMIN,
+                    (
+                        admin_id,
+                        distrito_id,
+                        tipo_id,
+                        estado_id,
+                        limite,
+                        desplazamiento,
+                    ),
+                )
+                return cursor.fetchall()
+    except psycopg.Error as error:
+        if error.sqlstate == "22023":
+            raise ReporteConsultaInvalidaError from error
+        if error.sqlstate == "42501":
+            raise ReporteNoAutorizadoError from error
+        if error.sqlstate == "42883":
+            raise ReporteConsultaNoConfiguradaError from error
+        raise
+

@@ -78,3 +78,11 @@ class ReporteDetalleItem(ReporteMioItem):
     imagen_path: str | None
     observacion_admin: str | None
     updated_at: datetime
+
+
+class ReporteAdminItem(ReporteMioItem):
+    """Item del listado administrativo: cualquier reporte y su autor."""
+
+    usuario_id: int
+    usuario_nombre: str
+    updated_at: datetime
