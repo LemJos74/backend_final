@@ -19,6 +19,8 @@ tablas y rutinas):
 12. 12_permisos_reportes_detalle.sql
 13. 13_reportes_admin_listado.sql
 14. 14_permisos_reportes_admin_listado.sql
+15. 15_reportes_cambio_estado.sql
+16. 16_permisos_reportes_cambio_estado.sql
 
 04 aplica SECURITY DEFINER, search_path y permisos EXECUTE al rol de
 aplicacion para las rutinas de usuarios. 05 crea las funciones de consulta
@@ -44,6 +46,21 @@ Administrador dentro de la base de datos. 14 reaplica SECURITY DEFINER,
 search_path y permisos EXECUTE para esa funcion. Al igual que 07 a 12,
 ambos scripts se ejecutan como propietario y no conceden acceso directo a
 las tablas: limpiahuancayo_app solo recibe EXECUTE.
+
+15 crea el procedimiento de cambio de estado de reportes. Solo un
+Administrador activo puede ejecutarlo; valida las transiciones permitidas
+(Pendiente a "En atención" o Rechazado; "En atención" a Resuelto o
+Rechazado), exige justificacion al rechazar, actualiza observacion_admin y
+updated_at y bloquea la fila para evitar cambios concurrentes. 16 reaplica
+SECURITY DEFINER, search_path y permisos EXECUTE para ese procedimiento. La
+firma de GRANT/REVOKE incluye solo los cuatro parametros IN, aunque el CALL
+recibe tambien los cuatro OUT como NULL.
+
+Antes de ejecutar 15, tener en cuenta que las transiciones comparan los
+nombres exactos del catalogo de estados, incluidos los acentos de
+"En atención". Si se renombra un estado, actualizar el procedimiento en el
+mismo cambio. El archivo 15 esta en UTF-8; ejecutarlo con client_encoding
+UTF8.
 
 La instalacion sigue siendo manual; todavia no existe un instalador SQL
 maestro. Ejecutar los scripts en el orden indicado y no reejecutar scripts

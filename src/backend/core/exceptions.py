@@ -30,6 +30,18 @@ class ReporteConflictoError(Exception):
     """Raised when a report cannot be inserted because of a conflict."""
 
 
+class ReporteNoEncontradoError(Exception):
+    """Raised when the requested report does not exist."""
+
+
+class ReporteTransicionInvalidaError(Exception):
+    """Raised when the requested state transition is not allowed."""
+
+
+class ReporteJustificacionRequeridaError(Exception):
+    """Raised when a report is rejected without a justification."""
+
+
 class EstadoReporteNoConfiguradoError(Exception):
     """Raised when the initial Pendiente state is missing."""
 

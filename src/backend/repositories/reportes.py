@@ -11,8 +11,11 @@ from backend.core.exceptions import (
     ReporteConsultaInvalidaError,
     ReporteConsultaNoConfiguradaError,
     ReporteDatosInvalidosError,
+    ReporteJustificacionRequeridaError,
     ReporteNoAutorizadoError,
+    ReporteNoEncontradoError,
     ReporteReferenciaInvalidaError,
+    ReporteTransicionInvalidaError,
 )
 
 _SQL_REGISTRAR = (
@@ -25,6 +28,12 @@ _SQL_OBTENER = "SELECT * FROM public.fn_reporte_obtener(%s, %s)"
 _SQL_LISTAR_ADMIN = (
     "SELECT * FROM public.fn_reporte_listar_admin("
     "%s::bigint, %s::bigint, %s::bigint, %s::bigint, %s::integer, %s::integer)"
+)
+# PostgreSQL exige argumentos para los cuatro parametros OUT del procedimiento.
+# No se evaluan: se envian como NULL y los valores reales vuelven en la fila.
+_SQL_CAMBIAR_ESTADO = (
+    "CALL public.sp_reporte_cambiar_estado("
+    "%s, %s, %s, %s, NULL, NULL, NULL, NULL)"
 )
 _CODIGOS_DATOS_INVALIDOS = frozenset({"22001", "22003", "22023", "23502", "23514"})
 _CODIGOS_CONSULTA_NO_CONFIGURADA = frozenset({"42501", "42883"})
@@ -152,4 +161,42 @@ def listar_admin(
         if error.sqlstate == "42883":
             raise ReporteConsultaNoConfiguradaError from error
         raise
+
+
+def cambiar_estado(
+    admin_id: int,
+    reporte_id: int,
+    estado_id: int,
+    justificacion: str | None,
+) -> dict[str, Any]:
+    """Change a report state through sp_reporte_cambiar_estado."""
+    try:
+        with get_connection() as connection:
+            with connection:
+                with connection.cursor(row_factory=dict_row) as cursor:
+                    cursor.execute(
+                        _SQL_CAMBIAR_ESTADO,
+                        (admin_id, reporte_id, estado_id, justificacion),
+                    )
+                    fila = cursor.fetchone()
+    except psycopg.Error as error:
+        if error.sqlstate == "22023":
+            raise ReporteDatosInvalidosError from error
+        if error.sqlstate == "23502":
+            raise ReporteJustificacionRequeridaError from error
+        if error.sqlstate == "55000":
+            raise ReporteTransicionInvalidaError from error
+        if error.sqlstate == "P0002":
+            raise ReporteNoEncontradoError from error
+        if error.sqlstate == "42501":
+            raise ReporteNoAutorizadoError from error
+        if error.sqlstate == "42883":
+            raise ReporteConsultaNoConfiguradaError from error
+        raise
+
+    if fila is None:
+        raise RuntimeError(
+            "El procedimiento no devolvió el estado actualizado del reporte"
+        )
+    return fila
 

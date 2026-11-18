@@ -86,3 +86,32 @@ class ReporteAdminItem(ReporteMioItem):
     usuario_id: int
     usuario_nombre: str
     updated_at: datetime
+
+
+class ReporteCambioEstadoRequest(BaseModel):
+    """Datos aceptados para cambiar el estado de un reporte."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    estado_id: Annotated[
+        int,
+        Field(gt=0, description="Nuevo estado del reporte"),
+    ]
+    justificacion: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, max_length=2000),
+    ] | None = None
+
+    @field_validator("justificacion")
+    @classmethod
+    def normalizar_justificacion(cls, valor: str | None) -> str | None:
+        """Treat a blank justification as absent."""
+        return valor or None
+
+
+class ReporteCambioEstadoResponse(BaseModel):
+    id: int
+    estado_id: int
+    estado_nombre: str
+    observacion_admin: str | None
+    updated_at: datetime

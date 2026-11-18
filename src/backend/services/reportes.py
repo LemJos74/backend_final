@@ -1,6 +1,7 @@
 from backend.repositories import reportes as repositorio
 from backend.schemas.reportes import (
     ReporteAdminItem,
+    ReporteCambioEstadoResponse,
     ReporteDetalleItem,
     ReporteMioItem,
     ReporteRegistroRequest,
@@ -111,3 +112,25 @@ def listar_admin(
         )
         for fila in filas
     ]
+
+
+def cambiar_estado(
+    admin_id: int,
+    reporte_id: int,
+    estado_id: int,
+    justificacion: str | None,
+) -> ReporteCambioEstadoResponse:
+    """Change a report state and return the resulting state summary."""
+    fila = repositorio.cambiar_estado(
+        admin_id=admin_id,
+        reporte_id=reporte_id,
+        estado_id=estado_id,
+        justificacion=justificacion,
+    )
+    return ReporteCambioEstadoResponse(
+        id=reporte_id,
+        estado_id=int(fila["p_estado_id"]),
+        estado_nombre=fila["p_estado_nombre"],
+        observacion_admin=fila["p_observacion_admin"],
+        updated_at=fila["p_updated_at"],
+    )
