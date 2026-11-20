@@ -2,8 +2,10 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     BeforeValidator,
+    ConfigDict,
     EmailStr,
     Field,
     SecretStr,
@@ -14,6 +16,12 @@ from pydantic import (
 def normalizar_email(valor: Any) -> Any:
     if isinstance(valor, str):
         return valor.strip().lower()
+    return valor
+
+
+def rechazar_caracter_nulo(valor: str) -> str:
+    if "\x00" in valor:
+        raise ValueError("El nombre contiene caracteres no permitidos")
     return valor
 
 
@@ -31,6 +39,16 @@ class UsuarioRegistroRequest(BaseModel):
 
 class UsuarioRegistroResponse(BaseModel):
     id: int
+
+
+class UsuarioPerfilUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=120),
+        AfterValidator(rechazar_caracter_nulo),
+    ]
 
 
 class UsuarioPerfilResponse(BaseModel):

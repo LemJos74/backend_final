@@ -14,6 +14,14 @@ class UsuarioNoAutorizadoError(Exception):
     """Raised when the user does not exist or is inactive."""
 
 
+class UsuarioDatosInvalidosError(Exception):
+    """Raised when profile data fails database validation."""
+
+
+class UsuarioNoConfiguradoError(Exception):
+    """Raised when the profile routine is missing or inaccessible."""
+
+
 class ReporteDatosInvalidosError(Exception):
     """Raised when report data fails database validation."""
 
