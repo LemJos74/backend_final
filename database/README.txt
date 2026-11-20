@@ -21,6 +21,8 @@ tablas y rutinas):
 14. 14_permisos_reportes_admin_listado.sql
 15. 15_reportes_cambio_estado.sql
 16. 16_permisos_reportes_cambio_estado.sql
+17. 17_reportes_estadisticas.sql
+18. 18_permisos_reportes_estadisticas.sql
 
 04 aplica SECURITY DEFINER, search_path y permisos EXECUTE al rol de
 aplicacion para las rutinas de usuarios. 05 crea las funciones de consulta
@@ -56,11 +58,20 @@ SECURITY DEFINER, search_path y permisos EXECUTE para ese procedimiento. La
 firma de GRANT/REVOKE incluye solo los cuatro parametros IN, aunque el CALL
 recibe tambien los cuatro OUT como NULL.
 
+17 crea la funcion de estadisticas del dashboard administrativo. Una sola
+funcion devuelve todos los indicadores en una misma consulta, en formato
+largo: una fila de resumen con el total, una fila por estado del catalogo
+(incluso con total 0), una fila por distrito y una por categoria con al menos
+un reporte. Como todo sale de la misma sentencia, la suma de cada
+distribucion coincide con el total. Solo un Administrador activo puede
+ejecutarla; el rol se valida en la base de datos. 18 reaplica SECURITY
+DEFINER, search_path y permisos EXECUTE para esa funcion.
+
 Antes de ejecutar 15, tener en cuenta que las transiciones comparan los
 nombres exactos del catalogo de estados, incluidos los acentos de
 "En atención". Si se renombra un estado, actualizar el procedimiento en el
-mismo cambio. El archivo 15 esta en UTF-8; ejecutarlo con client_encoding
-UTF8.
+mismo cambio. Los archivos 15 y 17 estan en UTF-8; ejecutarlos con
+client_encoding UTF8.
 
 La instalacion sigue siendo manual; todavia no existe un instalador SQL
 maestro. Ejecutar los scripts en el orden indicado y no reejecutar scripts
