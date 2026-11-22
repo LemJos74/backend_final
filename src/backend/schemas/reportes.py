@@ -75,7 +75,8 @@ class ReporteMioItem(BaseModel):
 
 
 class ReporteDetalleItem(ReporteMioItem):
-    imagen_path: str | None
+    tiene_fotografia: bool
+    fotografia_url: str | None
     observacion_admin: str | None
     updated_at: datetime
 

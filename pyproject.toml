@@ -11,9 +11,11 @@ dependencies = [
     "argon2-cffi>=25.1.0",
     "email-validator>=2.3.0",
     "fastapi>=0.162.2",
+    "pillow>=13.0.0",
     "psycopg[binary]>=3.3.8",
     "pyjwt>=2.15.1",
     "python-dotenv>=1.2.4",
+    "python-multipart>=0.0.34",
     "uvicorn>=0.54.0",
 ]
 

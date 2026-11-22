@@ -33,6 +33,10 @@ class Settings:
     )
     jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
     jwt_expire_minutes: int = _leer_minutos_expiracion()
+    reportes_fotos_dir: str = os.getenv(
+        "REPORTES_FOTOS_DIR",
+        "storage/reportes",
+    )
 
 
 settings = Settings()

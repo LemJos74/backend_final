@@ -26,6 +26,7 @@ tablas y rutinas):
 19. 19_usuarios_admin.sql
 20. 20_permisos_usuarios_admin.sql
 21. 21_revocar_rutinas_usuarios_antiguas.sql
+22. 22_reportes_fotografias.sql
 
 04 aplica SECURITY DEFINER, search_path y permisos EXECUTE al rol de
 aplicacion para las rutinas de usuarios. 05 crea las funciones de consulta
@@ -90,6 +91,12 @@ sus definiciones. 21 comprueba dentro de la misma transaccion que la
 revocacion sea efectiva, incluidos los permisos heredados y las concesiones a
 PUBLIC; si la comprobacion falla, aborta y revierte la transaccion. Ejecutar
 21 despues de 20.
+
+22 crea el procedimiento de registro con fotografia. Reutiliza el alta
+de 07 y asocia la clave al reporte nuevo en la misma transaccion. Conserva
+la firma y los permisos de 07. La descarga usa la funcion de detalle de 11.
+Ejecutar 22 como propietario, despues de 21 y antes de habilitar el alta
+multipart. El rol de aplicacion recibe solo EXECUTE en la nueva rutina.
 
 Antes de ejecutar 15, tener en cuenta que las transiciones comparan los
 nombres exactos del catalogo de estados, incluidos los acentos de

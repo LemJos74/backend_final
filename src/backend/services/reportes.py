@@ -1,3 +1,12 @@
+from backend.core.almacenamiento_fotografias import obtener_almacen
+from backend.core.exceptions import (
+    EstadoReporteNoConfiguradoError,
+    ReporteConflictoError,
+    ReporteDatosInvalidosError,
+    ReporteFotografiaNoEncontradaError,
+    ReporteNoAutorizadoError,
+)
+from backend.core.fotografias import procesar_fotografia
 from backend.repositories import reportes as repositorio
 from backend.schemas.reportes import (
     ReporteAdminItem,
@@ -8,7 +17,9 @@ from backend.schemas.reportes import (
 )
 
 
-def registrar_reporte(usuario_id: int, datos: ReporteRegistroRequest) -> int:
+def registrar_reporte(
+    usuario_id: int, datos: ReporteRegistroRequest, imagen_path: str | None = None
+) -> int:
     """Register a report for the authenticated citizen."""
     return repositorio.registrar_reporte(
         usuario_id=usuario_id,
@@ -18,7 +29,33 @@ def registrar_reporte(usuario_id: int, datos: ReporteRegistroRequest) -> int:
         ubicacion=datos.ubicacion,
         latitud=datos.latitud,
         longitud=datos.longitud,
+        imagen_path=imagen_path,
     )
+
+
+def registrar_con_fotografia(
+    usuario_id: int, datos: ReporteRegistroRequest, contenido: bytes
+) -> int:
+    jpeg = procesar_fotografia(contenido)
+    almacen = obtener_almacen()
+    clave = almacen.guardar(jpeg)
+    try:
+        return registrar_reporte(usuario_id, datos, clave)
+    except (
+        EstadoReporteNoConfiguradoError,
+        ReporteConflictoError,
+        ReporteDatosInvalidosError,
+        ReporteNoAutorizadoError,
+    ):
+        almacen.eliminar(clave)
+        raise
+
+
+def obtener_fotografia(reporte_id: int, usuario_id: int) -> bytes:
+    fila = repositorio.obtener_reporte(reporte_id, usuario_id)
+    if fila is None or fila["imagen_path"] is None:
+        raise ReporteFotografiaNoEncontradaError
+    return obtener_almacen().leer(fila["imagen_path"])
 
 
 def listar_mios(
@@ -68,7 +105,12 @@ def obtener_reporte(
         ubicacion=fila["ubicacion"],
         latitud=fila["latitud"],
         longitud=fila["longitud"],
-        imagen_path=fila["imagen_path"],
+        tiene_fotografia=fila["imagen_path"] is not None,
+        fotografia_url=(
+            f"/api/reportes/{reporte_id}/fotografia"
+            if fila["imagen_path"] is not None
+            else None
+        ),
         observacion_admin=fila["observacion_admin"],
         created_at=fila["created_at"],
         updated_at=fila["updated_at"],

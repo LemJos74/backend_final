@@ -76,3 +76,19 @@ class ReporteConsultaInvalidaError(Exception):
 
 class ReporteConsultaNoConfiguradaError(Exception):
     """Raised when the report listing routine is missing or inaccessible."""
+
+
+class ReporteFotografiaInvalidaError(Exception):
+    """Raised when an uploaded photograph is corrupt or not allowed."""
+
+
+class ReporteFotografiaDemasiadoGrandeError(Exception):
+    """Raised when an uploaded photograph exceeds the configured limit."""
+
+
+class ReporteFotografiaNoEncontradaError(Exception):
+    """Raised when a report or its photograph is not available."""
+
+
+class ReporteFotografiaAlmacenamientoError(Exception):
+    """Raised when a photograph cannot be stored or read."""

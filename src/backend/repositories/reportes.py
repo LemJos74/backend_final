@@ -21,6 +21,9 @@ from backend.core.exceptions import (
 _SQL_REGISTRAR = (
     "CALL public.sp_reporte_registrar(%s, %s, %s, %s, %s, %s, %s, %s)"
 )
+_SQL_REGISTRAR_CON_FOTOGRAFIA = (
+    "CALL public.sp_reporte_registrar_con_fotografia(%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+)
 _SQL_LISTAR_MIOS = (
     "SELECT * FROM public.fn_reporte_listar_mios(%s, %s, %s)"
 )
@@ -47,25 +50,19 @@ def registrar_reporte(
     ubicacion: str,
     latitud: Decimal,
     longitud: Decimal,
+    imagen_path: str | None = None,
 ) -> int:
     """Register a report through sp_reporte_registrar and return its id."""
+    consulta = _SQL_REGISTRAR
+    parametros = (usuario_id, distrito_id, tipo_id, descripcion, ubicacion, latitud, longitud)
+    if imagen_path is not None:
+        consulta = _SQL_REGISTRAR_CON_FOTOGRAFIA
+        parametros += (imagen_path,)
     try:
         with get_connection() as connection:
             with connection:
                 with connection.cursor() as cursor:
-                    cursor.execute(
-                        _SQL_REGISTRAR,
-                        (
-                            usuario_id,
-                            distrito_id,
-                            tipo_id,
-                            descripcion,
-                            ubicacion,
-                            latitud,
-                            longitud,
-                            None,
-                        ),
-                    )
+                    cursor.execute(consulta, (*parametros, None))
                     fila = cursor.fetchone()
     except psycopg.Error as error:
         sqlstate = error.sqlstate
