@@ -1,61 +1,55 @@
 # AGENTS.md
 
-## Project shape
+## Entorno
+- Backend LimpiaHuancayo: Python 3.14, `uv`, FastAPI, psycopg3 y PostgreSQL.
+- Código en `src/backend/` (entrypoint `backend.main:app`); SQL en `database/`.
+- Usar `uv` para todo. No usar `python` directo.
+- `uv sync` instala dependencias. API: `uv run uvicorn backend.main:app --reload` desde la raíz. Swagger: `/docs`.
+- `uv run python test_conexion.py` es un smoke manual de conexión, no una suite pytest.
+- No asumir suite de tests, lint, typecheck ni CI; usar solo lo configurado.
 
-LimpiaHuancayo backend is early-stage. Python 3.14 + `uv`. The FastAPI app lives in `src/backend/` (entrypoint `backend.main:app`), packaged as `backend` through `uv_build`'s `src/` layout. Most domain logic is implemented in PostgreSQL routines under `database/`. The API currently exposes `GET /`, `GET /health`, `POST /api/usuarios/registro`, `POST /api/auth/login`, `GET /api/auth/me`, and read-only catalogs under `/api/catalogos` (`distritos`, `tipos-reporte`, `estados-reporte`); `/health` checks only the HTTP server, not PostgreSQL.
+## Arquitectura
+- Capas: `apis` → `services` → `repositories`; `schemas` para Pydantic y `core` para configuración/conexión.
+- Sin ORM, SQLAlchemy ni Alembic.
+- Los repositories acceden a PostgreSQL solo mediante rutinas:
+  - lecturas: `SELECT * FROM public.fn_...(...)`
+  - escrituras: `CALL public.sp_...(...)`
+- Prohibido ejecutar `SELECT/INSERT/UPDATE/DELETE` directo contra tablas desde Python.
+- `fn_*` para lectura; `sp_*` para mutación.
+- Usar `core.database.get_connection`; las escrituras se confirman con `with connection:`.
+- Los repositories traducen SQLSTATE a excepciones de `core.exceptions`; las APIs las convierten en HTTP.
+- No cambiar el esquema ni rutinas existentes sin aprobación explícita. Crear scripts SQL numerados; el orden vigente está en `database/README.txt`.
+- Los scripts son manuales y no migran bases existentes; no reejecutarlos sobre una base poblada sin revisar.
+- Las rutinas expuestas usan `SECURITY DEFINER` y `search_path` seguro.
+- Mantener mensajes de error en español y los SQLSTATE existentes.
+- Backend y frontend son repositorios Git separados.
 
-## Commands
+## Seguridad
+- Autenticación con JWT HS256; configuración y expiración en `core/config.py`/`.env`.
+- Las rutas protegidas recargan el usuario desde PostgreSQL, leen su rol/estado y rechazan cuentas inactivas; nunca confiar en el rol del cliente ni en el JWT.
+- Autorización con `requiere_rol(...)`; sin autenticación `401`, sin permiso `403`.
+- Validar entrada y salida con Pydantic. No exponer secretos, contraseñas, hashes ni tokens en respuestas o logs.
+- Contraseñas con Argon2id; nunca en texto plano.
+- Aplicar mínimo privilegio en PostgreSQL: `limpiahuancayo_app` debe tener `EXECUTE` sobre las rutinas y ningún privilegio directo sobre tablas.
 
-- Use `uv` for everything. Bare `python` is not available (Windows Store alias); use `uv run python ...` or `.venv\Scripts\python`.
-- `uv sync` — install/refresh dependencies from `pyproject.toml` + `uv.lock`.
-- `uv run uvicorn backend.main:app --reload` — run the API from the repository root. Swagger UI: `http://127.0.0.1:8000/docs`.
-- `uv run python test_conexion.py` — manual DB connectivity smoke script; it is not pytest.
-- No lint, format, typecheck, test, or CI config exists. Do not invent pytest/ruff/mypy commands.
+## Flujo de trabajo
+- PLAN: investigar y proponer sin modificar archivos.
+- Esperar aprobación explícita del usuario antes de implementar.
+- BUILD: implementar únicamente el plan aprobado. Si cambia el alcance, volver a PLAN.
+- Permitido: consultas SQL de diagnóstico de solo lectura; no alteran datos, esquema ni permisos.
+- Requieren autorización explícita: ejecutar scripts SQL, cualquier operación de escritura sobre datos reales y las pruebas que modifiquen usuarios, reportes, estados o permisos, aunque sean temporales y se pretenda restaurar los datos.
+- No hacer commits ni push sin autorización.
+- No instalar ni actualizar dependencias sin autorización.
 
-## Architecture (required)
+## Calidad
+- Hacer cambios mínimos y enfocados; no modificar módulos ajenos ni descartar, sobrescribir o revertir cambios existentes que no pertenezcan a la tarea.
+- Mantener compatibilidad con endpoints, contratos, datos y comportamientos existentes.
+- Verificar los cambios con las pruebas o comprobaciones disponibles.
+- Reportar resultados, riesgos y archivos modificados en español.
 
-- Layers: `apis → services → repositories`; `schemas` for Pydantic models and `core` for configuration/connections.
-- No ORM, SQLAlchemy, or Alembic.
-- Repositories access PostgreSQL only through stored routines:
-  - reads: `SELECT * FROM public.fn_...(...)`
-  - writes: `CALL public.sp_...(...)`
-- Never run direct `SELECT/INSERT/UPDATE/DELETE` against tables from Python.
-- Do not change the schema or existing routines without explicit approval. Add new numbered SQL scripts instead.
-- Backend and frontend are separate Git repositories.
-
-## Domain rules
-
-- Roles: `Ciudadano` and `Administrador`.
-- Public registration creates only `Ciudadano`; `sp_usuario_registrar` assigns the role. Passwords are hashed with Argon2id in the service and never stored or logged in plaintext.
-- Authentication uses HS256 JWTs signed with `JWT_SECRET` and expiring after 30 minutes; protected routes reload the user from PostgreSQL and reject inactive accounts.
-- Authorization uses `requiere_rol("Administrador")` or `requiere_rol("Ciudadano", ...)` from `apis/dependencies.py`. It reuses `obtener_usuario_actual`, reads the current role from PostgreSQL and returns `403 {"detail": "No autorizado"}` when the role is not allowed. Never trust roles from the client or the JWT.
-- The first `Administrador` is created only by `database/06_admin_inicial.sql`, executed manually by the database owner. Public registration never assigns that role.
-- Citizens register, log in, create reports, and can read only their own reports.
-- Reports are immutable after creation: no edit/delete routines or endpoints.
-- Only administrators change report state and admin observations.
-- `Resuelto` and `Rechazado` are final states.
-- Report/map data requires authentication.
-
-## Database
-
-- `.env` at the repo root supplies `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `JWT_ALGORITHM` and `JWT_EXPIRE_MINUTES`; it is gitignored and must never be committed.
-- Setup is manual (psql/pgAdmin). Prerequisite: database `limpiahuancayo` and role `limpiahuancayo_app` exist. Run as table/routine owner, in order:
-  `01_esquema.sql` → `02_datos_iniciales.sql` → `03_usuarios_rutinas.sql` → `04_permisos_usuarios.sql` → `05_catalogos_consulta.sql` → `06_admin_inicial.sql`.
-- `03` creates the user routines; `04` sets `SECURITY DEFINER`/`search_path` and grants EXECUTE to `limpiahuancayo_app`; `05` creates and grants the three catalog functions. If `03` is re-run, re-run `04`.
-- `06` bootstraps the first `Administrador`. It is owner-run, idempotent, does not modify existing users, does not promote citizens, and grants nothing to `limpiahuancayo_app`. It accepts email, name and an Argon2id hash through session settings (`SET lh.admin_*`), not through values in the file. It must not be run until the owner supplies those values.
-- The app role must have EXECUTE on routines and no direct table privileges. Keep it that way.
-- Scripts use `IF NOT EXISTS`; they do not migrate existing tables. Do not re-run them blindly on a populated database.
-- Naming: `fn_*` are read/list functions, `sp_*` are mutation procedures. Preserve Spanish error messages and SQLSTATE codes (`22023` validation, `P0002` not found).
-- `test_conexion.py` exercises only `fn_tipo_reporte_listar()` (defined in `05`); it does not test user routines or the API.
-- `database/README.txt` documents the current setup order.
-
-## Layout
-
-- `src/backend/` — FastAPI application; `src/backend/main.py` is the entrypoint.
-- `src/backend/core/` — `.env` settings, the psycopg 3 connection helper, shared exceptions, and Argon2id/JWT helpers.
-- `src/backend/apis/` — HTTP routers (`auth.py`, `catalogos.py`, `usuarios.py`) and shared authentication/role dependencies (`dependencies.py`).
-- `src/backend/services/` — application orchestration (`auth.py`, `catalogos.py`, `usuarios.py`).
-- `src/backend/repositories/` — stored-routine access (`catalogos.py`, `usuarios.py`).
-- `src/backend/schemas/` — Pydantic request/response models (`auth.py`, `catalogos.py`, `usuarios.py`).
-- `database/` — numbered SQL scripts, applied manually in order.
-- `test_conexion.py` — standalone script at the root, not a test package.
+## Dominio
+- Roles: `Ciudadano` y `Administrador`; el registro público crea solo `Ciudadano`.
+- Un ciudadano solo accede a sus propios reportes y no puede editar su contenido tras registrarlo.
+- Un administrador puede consultar todos los reportes y cambiar sus estados y observaciones mediante las transiciones autorizadas.
+- `Resuelto` y `Rechazado` son estados finales.
+- Los datos de reportes y mapa requieren autenticación.
