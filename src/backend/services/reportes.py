@@ -1,3 +1,5 @@
+from datetime import date
+
 from backend.core.almacenamiento_fotografias import obtener_almacen
 from backend.core.exceptions import (
     EstadoReporteNoConfiguradoError,
@@ -124,6 +126,8 @@ def listar_admin(
     estado_id: int | None,
     limite: int,
     desplazamiento: int,
+    fecha_desde: date | None = None,
+    fecha_hasta: date | None = None,
 ) -> list[ReporteAdminItem]:
     """Return every report for an authenticated administrator."""
     filas = repositorio.listar_admin(
@@ -133,6 +137,8 @@ def listar_admin(
         estado_id=estado_id,
         limite=limite,
         desplazamiento=desplazamiento,
+        fecha_desde=fecha_desde,
+        fecha_hasta=fecha_hasta,
     )
     return [
         ReporteAdminItem(

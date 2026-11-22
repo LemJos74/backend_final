@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 
@@ -19,6 +20,34 @@ def _leer_minutos_expiracion() -> int:
         ) from error
 
 
+def _leer_origenes_cors() -> tuple[str, ...]:
+    origenes = []
+    for valor in os.getenv("CORS_ORIGINS", "").split(","):
+        valor = valor.strip()
+        if not valor:
+            continue
+        try:
+            url = urlsplit(valor)
+            url.port  # Validate explicit ports.
+            if (
+                url.scheme not in {"http", "https"}
+                or not url.hostname
+                or "*" in url.netloc
+                or url.username is not None
+                or url.path not in {"", "/"}
+                or url.query
+                or url.fragment
+                or any(caracter.isspace() for caracter in valor)
+            ):
+                raise ValueError
+        except ValueError:
+            raise RuntimeError(
+                "CORS_ORIGINS debe contener orígenes HTTP(S) exactos separados por comas"
+            ) from None
+        origenes.append(f"{url.scheme}://{url.netloc}")
+    return tuple(dict.fromkeys(origenes))
+
+
 @dataclass(frozen=True)
 class Settings:
     app_name: str = os.getenv("APP_NAME", "LimpiaHuancayo API")
@@ -26,7 +55,10 @@ class Settings:
     db_port: int = int(os.getenv("DB_PORT", "5432"))
     db_name: str = os.getenv("DB_NAME", "limpiahuancayo")
     db_user: str = os.getenv("DB_USER", "")
-    db_password: str = os.getenv("DB_PASSWORD", "")
+    db_password: str = field(default=os.getenv("DB_PASSWORD", ""), repr=False)
+    db_sslmode: str = os.getenv("DB_SSLMODE", "prefer")
+    db_sslrootcert: str | None = os.getenv("DB_SSLROOTCERT") or None
+    cors_origins: tuple[str, ...] = _leer_origenes_cors()
     jwt_secret: str = field(
         default=os.getenv("JWT_SECRET", ""),
         repr=False,

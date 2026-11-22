@@ -15,6 +15,8 @@ def create_connection() -> Connection:
         dbname=settings.db_name,
         user=settings.db_user,
         password=settings.db_password,
+        sslmode=settings.db_sslmode,
+        sslrootcert=settings.db_sslrootcert,
         connect_timeout=5,
     )
 

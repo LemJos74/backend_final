@@ -11,4 +11,17 @@ wheels/
 
 # Environment secrets
 .env
+.env.*
+!.env.example
+.envrc
+*.pem
+*.crt
+*.cer
+*.key
+/backups/
+/respaldos/
+*.dump
+*.backup
+*.bak
+*.sql.gz
 /storage/reportes/

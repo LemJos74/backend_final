@@ -1,0 +1,18 @@
+# Solo los insumos que usa el Dockerfile entran al contexto.
+**
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!src/**
+**/__pycache__/
+**/*.py[oc]
+**/.env*
+**/*.pem
+**/*.crt
+**/*.cer
+**/*.key
+**/*.dump
+**/*.backup
+**/*.bak
+**/*.sql.gz

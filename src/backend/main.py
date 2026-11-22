@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.apis.auth import router as auth_router
@@ -12,6 +13,13 @@ from backend.apis.usuarios_admin import router as usuarios_admin_router
 from backend.core.config import settings
 
 app = FastAPI(title=settings.app_name, version="0.1.0")
+if settings.cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_origins),
+        allow_methods=["GET", "POST", "PATCH"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
 app.include_router(auth_router)
 app.include_router(catalogos_router)
 app.include_router(dashboard_router)

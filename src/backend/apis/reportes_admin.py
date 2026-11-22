@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
@@ -21,6 +22,21 @@ from backend.schemas.usuarios import UsuarioPerfilResponse
 from backend.services import reportes as servicio
 
 router = APIRouter(prefix="/api/admin/reportes", tags=["admin-reportes"])
+
+
+def _fecha_iso(valor: str | None, parametro: str) -> date | None:
+    if valor is None:
+        return None
+    try:
+        fecha = date.fromisoformat(valor)
+        if fecha.isoformat() != valor:
+            raise ValueError
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"{parametro} debe ser una fecha válida en formato YYYY-MM-DD",
+        ) from None
+    return fecha
 
 
 @router.get(
@@ -55,8 +71,23 @@ def listar_reportes_admin(
         Query(ge=1, description="Filtra por estado"),
     ] = None,
     usuario: UsuarioPerfilResponse = Depends(requiere_rol("Administrador")),
+    fecha_desde: Annotated[
+        str | None,
+        Query(description="Fecha de registro inicial inclusiva en America/Lima (YYYY-MM-DD)"),
+    ] = None,
+    fecha_hasta: Annotated[
+        str | None,
+        Query(description="Fecha de registro final inclusiva en America/Lima (YYYY-MM-DD)"),
+    ] = None,
 ) -> list[ReporteAdminItem]:
     """List every report; administrator role required."""
+    desde = _fecha_iso(fecha_desde, "fecha_desde")
+    hasta = _fecha_iso(fecha_hasta, "fecha_hasta")
+    if desde is not None and hasta is not None and desde > hasta:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="La fecha desde no puede ser posterior a la fecha hasta",
+        )
     try:
         return servicio.listar_admin(
             admin_id=usuario.id,
@@ -65,6 +96,8 @@ def listar_reportes_admin(
             estado_id=estado_id,
             limite=limite,
             desplazamiento=desplazamiento,
+            fecha_desde=desde,
+            fecha_hasta=hasta,
         )
     except ReporteNoAutorizadoError:
         raise HTTPException(

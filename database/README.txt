@@ -27,6 +27,7 @@ tablas y rutinas):
 20. 20_permisos_usuarios_admin.sql
 21. 21_revocar_rutinas_usuarios_antiguas.sql
 22. 22_reportes_fotografias.sql
+23. 23_reportes_admin_fechas.sql
 
 04 aplica SECURITY DEFINER, search_path y permisos EXECUTE al rol de
 aplicacion para las rutinas de usuarios. 05 crea las funciones de consulta
@@ -97,6 +98,19 @@ de 07 y asocia la clave al reporte nuevo en la misma transaccion. Conserva
 la firma y los permisos de 07. La descarga usa la funcion de detalle de 11.
 Ejecutar 22 como propietario, despues de 21 y antes de habilitar el alta
 multipart. El rol de aplicacion recibe solo EXECUTE en la nueva rutina.
+
+23 crea fn_reporte_listar_admin_por_fecha. La función de seis argumentos de
+13 conserva su firma, definición y permisos. La función nueva recibe dos
+fechas DATE opcionales mediante NULL explícito. Interpreta los días en
+America/Lima y aplica el rango sobre created_at antes de ordenar y paginar.
+El backend sigue usando la función de 13 si no se indican fechas. Aplicar
+23 como propietario antes de habilitar los filtros de fecha. En una base
+que ya tiene 01 a 22, aplicar solo 23.
+
+Para revertir, retirar primero el frontend con los filtros de fecha y volver
+a la versión anterior del backend. Luego ejecutar como propietario
+rollback/23_reportes_admin_fechas.sql. El rollback elimina únicamente la
+función nueva por su firma exacta y deja intactos los datos.
 
 Antes de ejecutar 15, tener en cuenta que las transiciones comparan los
 nombres exactos del catalogo de estados, incluidos los acentos de

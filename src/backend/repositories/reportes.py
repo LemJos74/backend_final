@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -31,6 +32,11 @@ _SQL_OBTENER = "SELECT * FROM public.fn_reporte_obtener(%s, %s)"
 _SQL_LISTAR_ADMIN = (
     "SELECT * FROM public.fn_reporte_listar_admin("
     "%s::bigint, %s::bigint, %s::bigint, %s::bigint, %s::integer, %s::integer)"
+)
+_SQL_LISTAR_ADMIN_POR_FECHA = (
+    "SELECT * FROM public.fn_reporte_listar_admin_por_fecha("
+    "%s::bigint, %s::bigint, %s::bigint, %s::bigint, "
+    "%s::integer, %s::integer, %s::date, %s::date)"
 )
 # PostgreSQL exige argumentos para los cuatro parametros OUT del procedimiento.
 # No se evaluan: se envian como NULL y los valores reales vuelven en la fila.
@@ -133,22 +139,20 @@ def listar_admin(
     estado_id: int | None,
     limite: int,
     desplazamiento: int,
+    fecha_desde: date | None = None,
+    fecha_hasta: date | None = None,
 ) -> list[dict[str, Any]]:
-    """List every report through fn_reporte_listar_admin (admin only)."""
+    """List reports through the administrative function for the selected filters."""
+    consulta = _SQL_LISTAR_ADMIN
+    parametros = (admin_id, distrito_id, tipo_id, estado_id, limite, desplazamiento)
+    if fecha_desde is not None or fecha_hasta is not None:
+        consulta = _SQL_LISTAR_ADMIN_POR_FECHA
+        parametros += (fecha_desde, fecha_hasta)
+
     try:
         with get_connection() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
-                cursor.execute(
-                    _SQL_LISTAR_ADMIN,
-                    (
-                        admin_id,
-                        distrito_id,
-                        tipo_id,
-                        estado_id,
-                        limite,
-                        desplazamiento,
-                    ),
-                )
+                cursor.execute(consulta, parametros)
                 return cursor.fetchall()
     except psycopg.Error as error:
         if error.sqlstate == "22023":

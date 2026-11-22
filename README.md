@@ -21,7 +21,7 @@ uv run python --version
 
 ## 2. Configurar el entorno
 
-Crea un archivo `.env` en la raíz del backend. Configura estas variables según tu instalación local. El código carga ese archivo al iniciar y las variables ya definidas en la terminal tienen prioridad. Mantén `.env`, las contraseñas y los tokens fuera de Git. [Configuración del backend](src/backend/core/config.py)
+Copia [`.env.example`](.env.example) a `.env` en la raíz del backend y completa los valores de tu instalación local. El código carga ese archivo al iniciar y las variables ya definidas en la terminal tienen prioridad. Mantén `.env`, las contraseñas y los tokens fuera de Git. [Configuración del backend](src/backend/core/config.py)
 
 | Variable | Valor predeterminado o esperado |
 | --- | --- |
@@ -31,9 +31,12 @@ Crea un archivo `.env` en la raíz del backend. Configura estas variables según
 | `DB_NAME` | `limpiahuancayo` |
 | `DB_USER` | Configura `limpiahuancayo_app`. |
 | `DB_PASSWORD` | Usa la contraseña local del rol de aplicación. |
+| `DB_SSLMODE` | `prefer` en local. Usa `verify-full` para Supabase. |
+| `DB_SSLROOTCERT` | Vacío en local. Ruta del certificado CA cuando se usa `verify-full`. |
 | `JWT_SECRET` | Define un secreto aleatorio de al menos 32 caracteres. |
 | `JWT_ALGORITHM` | `HS256`, único algoritmo admitido. |
 | `JWT_EXPIRE_MINUTES` | `30`. Debe ser un entero positivo. |
+| `CORS_ORIGINS` | Vacío con el proxy de Angular. En Render, indica los orígenes exactos del frontend separados por comas. |
 | `REPORTES_FOTOS_DIR` | `storage/reportes`. Las rutas relativas se resuelven desde la raíz del backend. |
 
 ## 3. Preparar PostgreSQL
@@ -61,14 +64,14 @@ GRANT USAGE ON SCHEMA public TO limpiahuancayo_app;
 
 El rol de aplicación debe poder conectarse, usar el esquema y ejecutar las rutinas autorizadas por los scripts. Reserva los permisos directos sobre tablas para los roles que administran la base. Usa `limpiahuancayo_app` en el backend.
 
-Aplica los scripts **01 a 22**, en el orden exacto del [manual de base de datos](database/README.txt), como propietario de las tablas y rutinas. Desde la raíz del backend, este comando muestra cómo aplicar el primer archivo. Cambia el archivo en cada paso y detente si `psql` devuelve un error.
+Aplica los scripts **01 a 23**, en el orden exacto del [manual de base de datos](database/README.txt), como propietario de las tablas y rutinas. Desde la raíz del backend, este comando muestra cómo aplicar el primer archivo. Cambia el archivo en cada paso y detente si `psql` devuelve un error.
 
 ```powershell
 $env:PGCLIENTENCODING = 'UTF8'
 & $psql -X -h localhost -p 5432 -U postgres -W -d limpiahuancayo -v ON_ERROR_STOP=1 -f '.\database\01_esquema.sql'
 ```
 
-Al llegar al **06**, sigue las instrucciones de inicialización del Administrador en el manual. Los parámetros de ese paso y el script deben ejecutarse en la misma sesión. Después continúa con el 07 hasta el 22, `22_reportes_fotografias.sql`. El registro de ciudadanos se realiza mediante la API.
+Al llegar al **06**, sigue las instrucciones de inicialización del Administrador en el manual. Los parámetros de ese paso y el script deben ejecutarse en la misma sesión. Después continúa del 07 al 23. El registro de ciudadanos se realiza mediante la API.
 
 ### Base existente con los scripts 01–21 aplicados
 
@@ -80,12 +83,14 @@ SELECT to_regprocedure(
 );
 ```
 
-Si devuelve `NULL`, aplica **solo el script 22** como propietario. Si devuelve la rutina, el 22 ya está instalado. Evita reejecutar los scripts 01–21 sobre la base existente.
+Si devuelve `NULL`, aplica el **script 22** como propietario. Si devuelve la rutina, el 22 ya está instalado. Evita reejecutar los scripts 01–21 sobre la base existente. Después comprueba si falta el 23 y sigue el orden del [manual de base de datos](database/README.txt).
 
 ```powershell
 $env:PGCLIENTENCODING = 'UTF8'
 & $psql -X -h localhost -p 5432 -U postgres -W -d limpiahuancayo -v ON_ERROR_STOP=1 -f '.\database\22_reportes_fotografias.sql'
 ```
+
+Antes de habilitar el filtro administrativo por fecha, comprueba si existe `public.fn_reporte_listar_admin_por_fecha(bigint,bigint,bigint,bigint,integer,integer,date,date)` con `to_regprocedure`. Si falta y el 22 ya está instalado, ejecuta el mismo comando con `-f '.\database\23_reportes_admin_fechas.sql'`.
 
 ## 4. Iniciar y detener el servidor
 
@@ -152,3 +157,45 @@ git switch -c docs/guia-backend
 ```
 
 Revisa los cambios antes de preparar un commit y mantén fuera del repositorio `.env`, los respaldos y las fotografías locales.
+
+## 9. Preparar Supabase y Render
+
+### PostgreSQL en Supabase
+
+1. En el proyecto de Supabase, abre **Connect → Session pooler** y copia el host, el puerto y el nombre de la base que muestra el panel. El pooler de sesión permite usar psycopg sin cambios en el acceso a las rutinas. Descarga la CA desde **Database Settings → SSL Configuration**. [Conexiones a PostgreSQL en Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres)
+2. Usa el rol propietario para preparar la base. Crea el rol SQL `limpiahuancayo_app` con `LOGIN` y contraseña propia, con acceso al esquema y ejecución de las rutinas. En un proyecto dedicado a LimpiaHuancayo, desactiva la **Data API** si no la usas. Revisa los privilegios de `anon`, `authenticated`, `service_role` y `PUBLIC` sobre los objetos de LimpiaHuancayo, incluidos los privilegios por defecto, antes de exponer el servicio. [Seguridad de la Data API](https://supabase.com/docs/guides/api/securing-your-api)
+3. En una base nueva, aplica manualmente los scripts 01–23 en orden, como propietario y con UTF-8. Sobre una base existente, revisa la versión y aplica solo los scripts faltantes. El contenedor arranca FastAPI y la instalación de SQL se realiza por separado. [Orden de instalación](database/README.txt)
+
+### FastAPI en Render
+
+Crea manualmente un **Web Service** desde el repositorio GitHub del backend cuando esté publicado.
+
+| Campo | Valor |
+| --- | --- |
+| Runtime | Docker |
+| Root Directory, Docker Build Context | Raíz del repositorio, `.` |
+| Dockerfile Path | `./Dockerfile` |
+| Docker Command | Dejar vacío para usar el `CMD` del Dockerfile. |
+| Health Check Path | `/health` |
+
+El comando del contenedor es `uv run --no-sync uvicorn backend.main:app --host 0.0.0.0 --port "$PORT"`, con valor de respaldo `10000`. [Docker en Render](https://render.com/docs/docker)
+
+| Variable de Render | Valor |
+| --- | --- |
+| `DB_HOST`, `DB_PORT`, `DB_NAME` | Valores de **Session pooler** en Supabase, normalmente puerto `5432` y base `postgres`. |
+| `DB_USER` | `limpiahuancayo_app.<project-ref>` para Session pooler. |
+| `DB_PASSWORD` | Contraseña del rol de aplicación. |
+| `DB_SSLMODE` | `verify-full` |
+| `DB_SSLROOTCERT` | `/etc/secrets/supabase-root.crt`. Carga la CA con ese nombre en **Secret Files**. |
+| `JWT_SECRET` | Secreto propio de LimpiaHuancayo, aleatorio y de al menos 32 caracteres. |
+| `CORS_ORIGINS` | Origen HTTPS exacto del Static Site, sin ruta. Agrega dominios adicionales explícitamente si los usas. |
+| `APP_NAME`, `JWT_ALGORITHM`, `JWT_EXPIRE_MINUTES` | Opcionales. Conservan los valores predeterminados indicados en esta guía. |
+| `REPORTES_FOTOS_DIR` | `/app/storage/reportes` de forma predeterminada en Docker. |
+
+Mantén los secretos en el servicio del backend. Tras desplegar, prueba `GET /health` y `GET /api/catalogos/estados-reporte`. El segundo comprueba la conexión y la ejecución de una rutina con el rol de aplicación. Configura el origen público del backend como `API_BASE_URL` en el Static Site y prueba una recarga directa en `/ciudadano/reportes`. [Archivos secretos en Docker](https://render.com/docs/docker-secrets)
+
+### Fotografías persistentes
+
+El proveedor activo guarda JPEG en el sistema de archivos local. Render usa un sistema de archivos efímero por defecto. Si se habilitan reportes con foto antes de integrar Storage, adjunta un disco persistente en `/app/storage/reportes` y comprueba que sea escribible por el usuario del contenedor. Sin persistencia, un reinicio puede dejar referencias en PostgreSQL a archivos que ya no existen. [Discos persistentes de Render](https://render.com/docs/disks)
+
+La solución prevista es un **bucket privado** de Supabase Storage y un proveedor nuevo de `AlmacenFotografias` en el backend. Las credenciales se configurarían solo en FastAPI. Se conservaría la clave opaca en `imagen_path` y el endpoint existente seguiría autorizando al propietario o al administrador antes de servir el JPEG. Para trasladar fotos existentes, copia los objetos conservando sus claves y comprueba que se puedan recuperar antes de cambiar el proveedor. [Buckets privados de Supabase](https://supabase.com/docs/guides/storage/buckets/fundamentals) · [Interfaz de almacenamiento](src/backend/core/almacenamiento_fotografias.py)
