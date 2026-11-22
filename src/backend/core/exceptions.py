@@ -22,6 +22,22 @@ class UsuarioNoConfiguradoError(Exception):
     """Raised when the profile routine is missing or inaccessible."""
 
 
+class UsuarioConsultaInvalidaError(Exception):
+    """Raised when user listing parameters are invalid."""
+
+
+class UsuarioNoEncontradoError(Exception):
+    """Raised when the target user does not exist."""
+
+
+class UsuarioAutodesactivacionError(Exception):
+    """Raised when an administrator tries to deactivate itself."""
+
+
+class UltimoAdministradorActivoError(Exception):
+    """Raised when deactivating the last active administrator."""
+
+
 class ReporteDatosInvalidosError(Exception):
     """Raised when report data fails database validation."""
 

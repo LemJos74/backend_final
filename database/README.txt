@@ -23,6 +23,9 @@ tablas y rutinas):
 16. 16_permisos_reportes_cambio_estado.sql
 17. 17_reportes_estadisticas.sql
 18. 18_permisos_reportes_estadisticas.sql
+19. 19_usuarios_admin.sql
+20. 20_permisos_usuarios_admin.sql
+21. 21_revocar_rutinas_usuarios_antiguas.sql
 
 04 aplica SECURITY DEFINER, search_path y permisos EXECUTE al rol de
 aplicacion para las rutinas de usuarios. 05 crea las funciones de consulta
@@ -67,10 +70,31 @@ distribucion coincide con el total. Solo un Administrador activo puede
 ejecutarla; el rol se valida en la base de datos. 18 reaplica SECURITY
 DEFINER, search_path y permisos EXECUTE para esa funcion.
 
+19 crea las rutinas de administracion de usuarios. fn_usuario_listar_admin
+lista usuarios con filtros opcionales por busqueda de nombre o correo, rol y
+estado, con paginacion maxima de 100, y no devuelve contrasenas ni hashes.
+sp_usuario_cambiar_estado_admin activa o desactiva una cuenta, impide la
+autodesactivacion, protege al ultimo administrador activo, serializa los
+cambios de estado con un lock de asesoramiento y no modifica updated_at
+cuando el estado solicitado ya es el actual. Ambas rutinas validan en la base
+de datos que el administrador autenticado exista, este activo y tenga el rol
+Administrador. No eliminan usuarios ni reportes. 20 reaplica SECURITY
+DEFINER, search_path y permisos EXECUTE para ambas rutinas. Los scripts 19 y
+20 se ejecutan como propietario, despues de 18, y no crean tablas, columnas ni
+indices. El orden de RF10 es 19, luego 20 y finalmente 21.
+
+Las rutinas anteriores fn_usuario_listar y sp_usuario_cambiar_estado siguen
+existiendo, pero la API no las usa. Como no validan el rol administrativo,
+21 revoca su EXECUTE al rol limpiahuancayo_app sin eliminarlas ni modificar
+sus definiciones. 21 comprueba dentro de la misma transaccion que la
+revocacion sea efectiva, incluidos los permisos heredados y las concesiones a
+PUBLIC; si la comprobacion falla, aborta y revierte la transaccion. Ejecutar
+21 despues de 20.
+
 Antes de ejecutar 15, tener en cuenta que las transiciones comparan los
 nombres exactos del catalogo de estados, incluidos los acentos de
 "En atención". Si se renombra un estado, actualizar el procedimiento en el
-mismo cambio. Los archivos 15 y 17 estan en UTF-8; ejecutarlos con
+mismo cambio. Los archivos 15, 17, 19 y 21 estan en UTF-8; ejecutarlos con
 client_encoding UTF8.
 
 La instalacion sigue siendo manual; todavia no existe un instalador SQL

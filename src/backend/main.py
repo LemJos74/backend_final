@@ -8,6 +8,7 @@ from backend.apis.dashboard import router as dashboard_router
 from backend.apis.reportes import router as reportes_router
 from backend.apis.reportes_admin import router as reportes_admin_router
 from backend.apis.usuarios import router as usuarios_router
+from backend.apis.usuarios_admin import router as usuarios_admin_router
 from backend.core.config import settings
 
 app = FastAPI(title=settings.app_name, version="0.1.0")
@@ -17,6 +18,7 @@ app.include_router(dashboard_router)
 app.include_router(reportes_router)
 app.include_router(reportes_admin_router)
 app.include_router(usuarios_router)
+app.include_router(usuarios_admin_router)
 
 
 @app.exception_handler(RequestValidationError)

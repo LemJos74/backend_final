@@ -9,6 +9,7 @@ from pydantic import (
     EmailStr,
     Field,
     SecretStr,
+    StrictBool,
     StringConstraints,
 )
 
@@ -49,6 +50,28 @@ class UsuarioPerfilUpdateRequest(BaseModel):
         StringConstraints(strip_whitespace=True, min_length=1, max_length=120),
         AfterValidator(rechazar_caracter_nulo),
     ]
+
+
+class UsuarioAdminItem(BaseModel):
+    id: int
+    nombre: str
+    email: str
+    rol_id: int
+    rol: str
+    activo: bool
+    created_at: datetime
+
+
+class UsuarioAdminEstadoRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    activo: StrictBool
+
+
+class UsuarioAdminEstadoResponse(BaseModel):
+    id: int
+    activo: bool
+    updated_at: datetime
 
 
 class UsuarioPerfilResponse(BaseModel):

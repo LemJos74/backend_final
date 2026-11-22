@@ -7,14 +7,26 @@ from psycopg.rows import dict_row
 from backend.core.database import get_connection
 from backend.core.exceptions import (
     EmailDuplicadoError,
+    UltimoAdministradorActivoError,
+    UsuarioAutodesactivacionError,
+    UsuarioConsultaInvalidaError,
     UsuarioDatosInvalidosError,
     UsuarioNoAutorizadoError,
     UsuarioNoConfiguradoError,
+    UsuarioNoEncontradoError,
 )
 
 _SQL_REGISTRAR = "CALL public.sp_usuario_registrar(%s, %s, %s, %s)"
 _SQL_ACTUALIZAR_PERFIL = "CALL public.sp_usuario_actualizar_perfil(%s, %s)"
 _SQL_OBTENER_POR_ID = "SELECT * FROM public.fn_usuario_obtener_por_id(%s)"
+_SQL_LISTAR_ADMIN = (
+    "SELECT * FROM public.fn_usuario_listar_admin("
+    "%s::bigint, %s::text, %s::varchar, %s::boolean, %s::integer, %s::integer)"
+)
+_SQL_CAMBIAR_ESTADO_ADMIN = (
+    "CALL public.sp_usuario_cambiar_estado_admin("
+    "%s::bigint, %s::bigint, %s::boolean, NULL, NULL, NULL)"
+)
 _CONSTRAINT_EMAIL = "ux_usuarios_email_normalizado"
 _CODIGOS_DATOS_INVALIDOS = frozenset({"22001", "22023", "23514"})
 _CODIGOS_NO_CONFIGURADO = frozenset({"42501", "42883"})
@@ -85,3 +97,74 @@ def actualizar_perfil(
         if error.sqlstate in _CODIGOS_NO_CONFIGURADO:
             raise UsuarioNoConfiguradoError from error
         raise
+
+
+def listar_admin(
+    admin_id: int,
+    busqueda: str | None,
+    rol: str | None,
+    activo: bool | None,
+    limite: int,
+    desplazamiento: int,
+) -> list[dict[str, Any]]:
+    """List users through the administrative stored function."""
+    try:
+        with get_connection() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    _SQL_LISTAR_ADMIN,
+                    (
+                        admin_id,
+                        busqueda,
+                        rol,
+                        activo,
+                        limite,
+                        desplazamiento,
+                    ),
+                )
+                return cursor.fetchall()
+    except psycopg.Error as error:
+        if error.sqlstate == "22023":
+            raise UsuarioConsultaInvalidaError from error
+        if error.sqlstate == "42501":
+            raise UsuarioNoAutorizadoError from error
+        if error.sqlstate == "42883":
+            raise UsuarioNoConfiguradoError from error
+        raise
+
+
+def cambiar_estado_admin(
+    admin_id: int,
+    usuario_id: int,
+    activo: bool,
+) -> dict[str, Any]:
+    """Change a user's state through the administrative procedure."""
+    try:
+        with get_connection() as connection:
+            with connection:
+                with connection.cursor(row_factory=dict_row) as cursor:
+                    cursor.execute(
+                        _SQL_CAMBIAR_ESTADO_ADMIN,
+                        (admin_id, usuario_id, activo),
+                    )
+                    fila = cursor.fetchone()
+    except psycopg.Error as error:
+        if error.sqlstate == "22023":
+            raise UsuarioDatosInvalidosError from error
+        if error.sqlstate == "23514":
+            raise UsuarioAutodesactivacionError from error
+        if error.sqlstate == "55000":
+            raise UltimoAdministradorActivoError from error
+        if error.sqlstate == "P0002":
+            raise UsuarioNoEncontradoError from error
+        if error.sqlstate == "42501":
+            raise UsuarioNoAutorizadoError from error
+        if error.sqlstate == "42883":
+            raise UsuarioNoConfiguradoError from error
+        raise
+
+    if fila is None:
+        raise RuntimeError(
+            "El procedimiento no devolvió el estado actualizado del usuario"
+        )
+    return fila
