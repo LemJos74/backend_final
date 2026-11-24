@@ -1,0 +1,107 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Solicitar despliegue a Render después de CI
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  ci:
+    name: Validar backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: '0.13.6'
+          python-version: '3.14'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Instalar dependencias bloqueadas
+        run: uv sync --locked
+
+      - name: Verificar sintaxis de Python
+        run: uv run --locked --no-sync python -m compileall -q src test_conexion.py
+
+      - name: Iniciar FastAPI y verificar /health
+        env:
+          PYTHON_DOTENV_DISABLED: '1'
+          JWT_SECRET: ci-only-placeholder-not-a-production-secret
+          DB_HOST: 127.0.0.1
+          DB_PORT: '1'
+        run: |
+          uv run --locked --no-sync uvicorn backend.main:app --host 127.0.0.1 --port 8000 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          health=$(curl --fail --silent --show-error --noproxy '*' --max-time 2 \
+            --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:8000/health)
+          uv run --locked --no-sync python -c "import json, sys; sys.exit(json.loads(sys.argv[1]) != {'status': 'ok'})" "$health"
+
+      - name: Construir imagen Docker
+        run: docker build --tag limpiahuancayo-backend:ci .
+
+  deploy:
+    name: Solicitar despliegue en Render
+    needs: ci
+    if: >-
+      github.ref == 'refs/heads/master' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && inputs.deploy))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    concurrency:
+      group: backend-render-production
+      cancel-in-progress: false
+    steps:
+      - name: Comprobar que el SHA validado sigue en master
+        id: revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          master_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/master" --jq '.object.sha')
+          if [[ "$master_sha" == "$GITHUB_SHA" ]]; then
+            echo 'current=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Se omite el despliegue porque master avanzó desde esta ejecución.'
+          fi
+
+      - name: Enviar el SHA validado al Deploy Hook
+        if: steps.revision.outputs.current == 'true'
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [[ -z "$RENDER_DEPLOY_HOOK" ]]; then
+            echo 'Falta el secreto RENDER_DEPLOY_HOOK.' >&2
+            exit 1
+          fi
+
+          status=$(curl --disable --silent --proto '=https' --max-time 30 \
+            --request POST --url-query "ref=$GITHUB_SHA" \
+            --output /dev/null --write-out '%{http_code}' --url "$RENDER_DEPLOY_HOOK") || {
+            echo 'No se pudo contactar con Render.' >&2
+            exit 1
+          }
+
+          case "$status" in
+            200|202) echo "Render aceptó la solicitud para $GITHUB_SHA (HTTP $status)." ;;
+            *) echo "Render rechazó la solicitud (HTTP $status)." >&2; exit 1 ;;
+          esac
