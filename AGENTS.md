@@ -6,7 +6,9 @@
 - Usar `uv` para todo. No usar `python` directo.
 - `uv sync` instala dependencias. API: `uv run uvicorn backend.main:app --reload` desde la raíz. Swagger: `/docs`.
 - `uv run python test_conexion.py` es un smoke manual de conexión, no una suite pytest.
-- No asumir suite de tests, lint, typecheck ni CI; usar solo lo configurado.
+- GitHub Actions es un requisito académico. Valida el backend con `uv sync --locked`, compilación de sintaxis, una comprobación HTTP de `/health` en loopback y un build Docker.
+- Ejecuta las suites y herramientas de análisis configuradas cuando existan; incorpóralas al pipeline al añadirlas. Para CI usa valores ficticios y un entorno aislado, sin credenciales de producción ni ejecución de SQL.
+- El CD en Render requiere CI exitoso en `master` y solicita el despliegue del SHA validado mediante un Deploy Hook guardado en GitHub Secrets.
 
 ## Arquitectura
 - Capas: `apis` → `services` → `repositories`; `schemas` para Pydantic y `core` para configuración/conexión.

@@ -199,3 +199,36 @@ Mantén los secretos en el servicio del backend. Tras desplegar, prueba `GET /he
 El proveedor activo guarda JPEG en el sistema de archivos local. Render usa un sistema de archivos efímero por defecto. Si se habilitan reportes con foto antes de integrar Storage, adjunta un disco persistente en `/app/storage/reportes` y comprueba que sea escribible por el usuario del contenedor. Sin persistencia, un reinicio puede dejar referencias en PostgreSQL a archivos que ya no existen. [Discos persistentes de Render](https://render.com/docs/disks)
 
 La solución prevista es un **bucket privado** de Supabase Storage y un proveedor nuevo de `AlmacenFotografias` en el backend. Las credenciales se configurarían solo en FastAPI. Se conservaría la clave opaca en `imagen_path` y el endpoint existente seguiría autorizando al propietario o al administrador antes de servir el JPEG. Para trasladar fotos existentes, copia los objetos conservando sus claves y comprueba que se puedan recuperar antes de cambiar el proveedor. [Buckets privados de Supabase](https://supabase.com/docs/guides/storage/buckets/fundamentals) · [Interfaz de almacenamiento](src/backend/core/almacenamiento_fotografias.py)
+
+## 10. GitHub Actions
+
+[Backend CI/CD](.github/workflows/ci-cd.yml) valida los pushes a `master`, los pull requests dirigidos a `master` y las ejecuciones manuales. En Ubuntu usa Python 3.14 y uv 0.13.6, instala las dependencias de `uv.lock` con `uv sync --locked`, compila la sintaxis de Python, inicia FastAPI en loopback y exige que `GET /health` devuelva `{"status":"ok"}`. También construye la imagen con el Dockerfile del repositorio.
+
+`/health` comprueba el arranque y la respuesta HTTP de la API. La comprobación usa configuración ficticia, deshabilita la carga de `.env` y apunta PostgreSQL a loopback. Actualmente el repositorio carece de una suite automatizada y de herramientas de análisis estático configuradas. `test_conexion.py` es una comprobación manual de PostgreSQL y CI solo compila su sintaxis.
+
+El job de despliegue requiere CI exitoso. Un push a `master` puede activarlo automáticamente. En una ejecución manual, selecciona `master` y marca `deploy` para solicitarlo. Los pull requests solo ejecutan CI. GitHub serializa las solicitudes al hook y puede reemplazar una solicitud pendiente por otra más reciente. Antes de llamar al hook, el job verifica que el SHA validado sigue siendo la punta de `master`. Render recibe ese SHA en `ref` y construye la imagen a partir de ese commit. Un HTTP 200 o 202 confirma que Render aceptó la solicitud. El estado final se consulta en **Deploys**. [Concurrencia en GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) · [Deploy Hooks de Render](https://render.com/docs/deploy-hooks)
+
+### Configuración manual
+
+1. En Render, comprueba que el **Web Service** del backend usa Docker, apunta a `LemJos74/backend_final` en `master` y conserva `/health` como ruta de salud. Desactiva **Auto-Deploy** antes de habilitar el pipeline. Si has habilitado vistas previas automáticas de pull requests para este servicio, desactívalas también.
+2. Copia el **Deploy Hook** del servicio backend desde **Settings**. En GitHub, guárdalo en **Settings → Secrets and variables → Actions → Secrets** como secreto de repositorio `RENDER_DEPLOY_HOOK`. Usa la URL completa generada por Render. El workflow añadirá `ref`.
+3. Conserva las credenciales de PostgreSQL, el secreto JWT y el certificado en Render. GitHub Actions solo necesita el secreto del hook.
+4. Cuando se autorice publicar el workflow, abre un pull request hacia `master` y verifica que **Validar backend** termine correctamente y que el job de despliegue se omita. Cuando se autorice el primer despliegue, comprueba en **Deploys** que Render publique el SHA esperado.
+
+### Verificación local
+
+Desde la raíz del backend, ejecuta en PowerShell con Docker en modo de contenedores Linux.
+
+```powershell
+uv sync --locked --python 3.14
+uv run --locked --no-sync python -m compileall -q src test_conexion.py
+docker build --tag limpiahuancayo-backend:ci .
+
+$env:PYTHON_DOTENV_DISABLED = '1'
+$env:JWT_SECRET = 'ci-only-placeholder-not-a-production-secret'
+$env:DB_HOST = '127.0.0.1'
+$env:DB_PORT = '1'
+uv run --locked --no-sync uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
+
+En otra terminal, ejecuta `curl.exe --fail --noproxy "*" http://127.0.0.1:8000/health` y comprueba que responde con `{"status":"ok"}`. Detén Uvicorn con **Ctrl+C**.
